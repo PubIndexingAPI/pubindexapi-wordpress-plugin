@@ -6,8 +6,8 @@
  * Version: 1.0.1
  * Author: Colin McDermott
  * Author URI: https://www.pubindexapi.com/
- * License: GPL2 or later
- * License URI: https://www.gnu.org/licenses/gpl-2.0.html
+ * License: GPL3 or later
+ * License URI: https://www.gnu.org/licenses/gpl-3.0.html
  */
 
 // Add settings page
