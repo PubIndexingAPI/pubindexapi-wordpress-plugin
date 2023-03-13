@@ -4,7 +4,7 @@
  * Plugin URI: https://www.pubindexapi.com/
  * Description: Indexing API for Google News publishers. Index your content in Google faster. Notifies Google in real-time when you publish or update content.
  * Version: 1.0.1
- * Author: Colin McDermott
+ * Author: PubIndexAPI
  * Author URI: https://www.pubindexapi.com/
  * License: GPL3 or later
  * License URI: https://www.gnu.org/licenses/gpl-3.0.html
