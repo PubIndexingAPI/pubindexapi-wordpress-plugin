@@ -3,7 +3,7 @@
  * Plugin Name: Publisher Indexing API
  * Plugin URI: https://www.pubindexapi.com/
  * Description: Indexing API for Google News publishers. Index your content in Google faster. Notifies Google in real-time when you publish or update content.
- * Version: 1.0.1
+ * Version: 1.1.0
  * Author: PubIndexAPI
  * Author URI: https://www.pubindexapi.com/
  * License: GPL3 or later
@@ -34,10 +34,10 @@ function pub_index_api_render_settings_page() {
       submit_button( 'Save Settings' );
       ?>
     </form>
-	<br />
-	<p>For more information visit <a href="https://pubindexapi.com/">PubIndexAPI.com</a></p>
-	<p>To get an API key go to the <a href="https://app.pubindexapi.com/">API dashboard</a></p>
-	<p>API <a href="https://pubindexapi.com/terms/">Terms of use</a></p>
+    <br />
+    <p>For more information visit <a href="https://pubindexapi.com/">PubIndexAPI.com</a></p>
+    <p>To get an API key go to the <a href="https://app.pubindexapi.com/">API dashboard</a></p>
+    <p>API <a href="https://pubindexapi.com/terms/">Terms of use</a></p>
   </div>
   <?php
 }
@@ -46,48 +46,89 @@ function pub_index_api_render_settings_page() {
 function pub_index_api_register_settings() {
   register_setting(
     'pub_index_api_options',
-    'pub_index_api_key',
+    'pub_index_api_options',
     array(
-      'type' => 'string',
-      'sanitize_callback' => 'sanitize_text_field',
+      'type' => 'array',
+      'sanitize_callback' => 'pub_index_api_sanitize_options',
     )
   );
+
   add_settings_section(
     'pub_index_api_section',
-    'Manage API Key',
+    'Manage API Settings',
     'pub_index_api_render_settings_section',
     'pub_index_api_settings'
   );
+
   add_settings_field(
     'pub_index_api_key',
     'API Key',
-    'pub_index_api_render_settings_field',
+    'pub_index_api_render_api_key_field',
     'pub_index_api_settings',
     'pub_index_api_section',
     array( 'label_for' => 'pub_index_api_key' )
   );
+
+  add_settings_field(
+    'pub_index_api_ping_options',
+    'Ping Options',
+    'pub_index_api_render_ping_options_field',
+    'pub_index_api_settings',
+    'pub_index_api_section',
+    array( 'label_for' => 'pub_index_api_ping_options' )
+  );
 }
 add_action( 'admin_init', 'pub_index_api_register_settings' );
 
-// Render settings section
-function pub_index_api_render_settings_section() {
-  echo '<p>Enter your API key below:</p>';
+// Sanitize options
+function pub_index_api_sanitize_options( $options ) {
+  $sanitized_options = array();
+
+  if ( isset( $options['api_key'] ) ) {
+    $sanitized_options['api_key'] = sanitize_text_field( $options['api_key'] );
+  }
+
+  if ( isset( $options['ping_options'] ) ) {
+    $sanitized_options['ping_options'] = sanitize_text_field( $options['ping_options'] );
+  }
+
+  return $sanitized_options;
 }
 
-// Render settings field
-function pub_index_api_render_settings_field() {
-  $value = get_option( 'pub_index_api_key' );
+// Render settings section
+function pub_index_api_render_settings_section() {
+  echo '<p>Enter your API key and configure the plugin options below:</p>';
+}
+
+// Render API key field
+function pub_index_api_render_api_key_field() {
+  $options = get_option( 'pub_index_api_options' );
+  $value = isset( $options['api_key'] ) ? $options['api_key'] : '';
   ?>
-  <input type="text" id="pub_index_api_key" name="pub_index_api_key" value="<?php echo esc_attr( $value ); ?>">
+  <input type="text" id="pub_index_api_key" name="pub_index_api_options[api_key]" value="<?php echo esc_attr( $value ); ?>">
+  <?php
+}
+
+// Render ping options field
+function pub_index_api_render_ping_options_field() {
+  $options = get_option( 'pub_index_api_options' );
+  $value = isset( $options['ping_options'] ) ? $options['ping_options'] : 'publish';
+  ?>
+  <select id="pub_index_api_ping_options" name="pub_index_api_options[ping_options]">
+    <option value="publish" <?php selected( $value, 'publish' ); ?>>On Publish</option>
+    <option value="both" <?php selected( $value, 'both' ); ?>>On Publish & Update</option>
+  </select>
   <?php
 }
 
 // Fetch API URL with parameters and send GET request to API
 function pub_index_api_send_data( $post_ID ) {
-  $api_key = get_option( 'pub_index_api_key' );
+  $options = get_option( 'pub_index_api_options' );
+  $api_key = isset( $options['api_key'] ) ? $options['api_key'] : '';
   if ( ! $api_key ) {
     return;
   }
+
   $api_url = 'https://api.pubindex.dev/api/ping';
   $rss_feed_url = get_bloginfo( 'rss2_url' );
   $request_url = $api_url . '?feed=' . urlencode( $rss_feed_url ) . '&api-key=' . urlencode( $api_key );
@@ -100,5 +141,10 @@ function pub_index_api_send_data( $post_ID ) {
   if ( ! is_wp_error( $response ) && $response['response']['code'] == 200 ) {
   }
 }
-add_action( 'publish_post', 'pub_index_api_send_data' );
-add_action( 'post_updated', 'pub_index_api_send_data' );
+
+if ( get_option( 'pub_index_api_options' )['ping_options'] === 'both' ) {
+  add_action( 'publish_post', 'pub_index_api_send_data' );
+  add_action( 'post_updated', 'pub_index_api_send_data' );
+} else {
+  add_action( 'publish_post', 'pub_index_api_send_data' );
+}
