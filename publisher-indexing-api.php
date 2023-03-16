@@ -3,7 +3,7 @@
  * Plugin Name: Publisher Indexing API
  * Plugin URI: https://www.pubindexapi.com/
  * Description: Indexing API for Google News publishers. Index your content in Google faster. Notifies Google in real-time when you publish or update content.
- * Version: 1.0.2
+ * Version: 1.0.1
  * Author: PubIndexAPI
  * Author URI: https://www.pubindexapi.com/
  * License: GPL3 or later
@@ -34,10 +34,10 @@ function pub_index_api_render_settings_page() {
       submit_button( 'Save Settings' );
       ?>
     </form>
-	<br />
-	<p>For more information visit <a href="https://pubindexapi.com/">PubIndexAPI.com</a></p>
-	<p>To get an API key go to the <a href="https://app.pubindexapi.com/">API dashboard</a></p>
-	<p>API <a href="https://pubindexapi.com/terms/">Terms of use</a></p>
+    <br />
+    <p>For more information visit <a href="https://pubindexapi.com/">PubIndexAPI.com</a></p>
+    <p>To get an API key go to the <a href="https://app.pubindexapi.com/">API dashboard</a></p>
+    <p>API <a href="https://pubindexapi.com/terms/">Terms of use</a></p>
   </div>
   <?php
 }
@@ -52,9 +52,17 @@ function pub_index_api_register_settings() {
       'sanitize_callback' => 'sanitize_text_field',
     )
   );
+  register_setting(
+    'pub_index_api_options',
+    'pub_index_api_post_types',
+    array(
+      'type' => 'array',
+      'sanitize_callback' => 'pub_index_api_sanitize_post_types',
+    )
+  );
   add_settings_section(
     'pub_index_api_section',
-    'Manage API Key',
+    'Manage API Key and Post Types',
     'pub_index_api_render_settings_section',
     'pub_index_api_settings'
   );
@@ -66,12 +74,25 @@ function pub_index_api_register_settings() {
     'pub_index_api_section',
     array( 'label_for' => 'pub_index_api_key' )
   );
+  add_settings_field(
+    'pub_index_api_post_types',
+    'Post Types',
+    'pub_index_api_render_post_types_field',
+    'pub_index_api_settings',
+    'pub_index_api_section',
+    array( 'label_for' => 'pub_index_api_post_types' )
+  );
 }
 add_action( 'admin_init', 'pub_index_api_register_settings' );
 
+// Sanitize post types
+function pub_index_api_sanitize_post_types( $post_types ) {
+  return array_map( 'sanitize_text_field', $post_types );
+}
+
 // Render settings section
 function pub_index_api_render_settings_section() {
-  echo '<p>Enter your API key below:</p>';
+  echo '<p>Enter your API key and select post types to include:</p>';
 }
 
 // Render settings field
@@ -82,17 +103,29 @@ function pub_index_api_render_settings_field() {
   <?php
 }
 
+// Render post types field
+function pub_index_api_render_post_types_field() {
+  $selected_post_types = get_option( 'pub_index_api_post_types', array() );
+  $post_types = get_post_types( array( 'public' => true ), 'names' );
+  foreach ( $post_types as $post_type ) {
+    $checked = in_array( $post_type, $selected_post_types ) ? 'checked' : '';
+    ?>
+    <input type="checkbox" id="pub_index_api_post_types_<?php echo esc_attr( $post_type ); ?>" name="pub_index_api_post_types[]" value="<?php echo esc_attr( $post_type ); ?>" <?php echo $checked; ?>>
+    <label for="pub_index_api_post_types_<?php echo esc_attr( $post_type ); ?>"><?php echo esc_html( $post_type ); ?></label><br>
+    <?php
+  }
+}
+
 // Fetch API URL with parameters and send GET request to API
 function pub_index_api_send_data( $post_ID ) {
-  $post = get_post( $post_ID );
-  if ( 'post' !== $post->post_type ) {
-    return;
-  }
-
   $api_key = get_option( 'pub_index_api_key' );
-  if ( ! $api_key ) {
+  $selected_post_types = get_option( 'pub_index_api_post_types', array() );
+  $post_type = get_post_type( $post_ID );
+  
+  if ( ! $api_key || ! in_array( $post_type, $selected_post_types ) ) {
     return;
   }
+  
   $api_url = 'https://api.pubindex.dev/api/ping';
   $rss_feed_url = get_bloginfo( 'rss2_url' );
   $request_url = $api_url . '?feed=' . urlencode( $rss_feed_url ) . '&api-key=' . urlencode( $api_key );
