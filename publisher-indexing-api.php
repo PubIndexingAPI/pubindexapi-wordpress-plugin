@@ -3,7 +3,7 @@
  * Plugin Name: Publisher Indexing API
  * Plugin URI: https://www.pubindexapi.com/
  * Description: Indexing API for Google News publishers. Index your content in Google faster. Notifies Google in real-time when you publish or update content.
- * Version: 1.0.1
+ * Version: 1.1.0
  * Author: PubIndexAPI
  * Author URI: https://www.pubindexapi.com/
  * License: GPL3 or later
@@ -87,12 +87,31 @@ add_action( 'admin_init', 'pub_index_api_register_settings' );
 
 // Sanitize post types
 function pub_index_api_sanitize_post_types( $post_types ) {
+  if ( empty( $post_types ) || ! is_array( $post_types ) ) {
+    $post_types = array( 'post' );
+  }
   return array_map( 'sanitize_text_field', $post_types );
 }
 
 // Render settings section
 function pub_index_api_render_settings_section() {
   echo '<p>Enter your API key and select post types to include:</p>';
+  pub_index_api_display_feed_urls();
+}
+
+// Display feed URLs
+function pub_index_api_display_feed_urls() {
+  $selected_post_types = get_option( 'pub_index_api_post_types', array() );
+  echo '<p>Feeds in use:</p>';
+  echo '<ul>';
+  foreach ( $selected_post_types as $post_type ) {
+    $feed_url = get_bloginfo( 'rss2_url' );
+    if ( $post_type !== 'post' ) {
+      $feed_url .= '?post_type=' . urlencode( $post_type );
+    }
+    echo '<li><a href="' . esc_url( $feed_url ) . '">' . esc_html( $feed_url ) . '</a></li>';
+  }
+  echo '</ul>';
 }
 
 // Render settings field
@@ -116,7 +135,7 @@ function pub_index_api_render_post_types_field() {
   }
 }
 
-// Fetch API URL with parameters and send GET request to API
+// Send data to API
 function pub_index_api_send_data( $post_ID ) {
   $api_key = get_option( 'pub_index_api_key' );
   $selected_post_types = get_option( 'pub_index_api_post_types', array() );
@@ -128,6 +147,11 @@ function pub_index_api_send_data( $post_ID ) {
   
   $api_url = 'https://api.pubindex.dev/api/ping';
   $rss_feed_url = get_bloginfo( 'rss2_url' );
+  
+  if ( $post_type !== 'post' ) {
+    $rss_feed_url .= '?post_type=' . urlencode( $post_type );
+  }
+  
   $request_url = $api_url . '?feed=' . urlencode( $rss_feed_url ) . '&api-key=' . urlencode( $api_key );
   $response = wp_remote_get( $request_url, array(
     'timeout' => 10,
@@ -135,6 +159,7 @@ function pub_index_api_send_data( $post_ID ) {
       'Content-Type' => 'application/json',
     ),
   ) );
+  
   if ( ! is_wp_error( $response ) && $response['response']['code'] == 200 ) {
   }
 }
