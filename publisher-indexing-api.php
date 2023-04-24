@@ -3,7 +3,7 @@
  * Plugin Name: Publisher Indexing API
  * Plugin URI: https://www.pubindexapi.com/
  * Description: Indexing API for Google News publishers. Index your content in Google faster. Notifies Google in real-time when you publish or update content.
- * Version: 1.1.0
+ * Version: 1.1.2
  * Author: PubIndexAPI
  * Author URI: https://www.pubindexapi.com/
  * License: GPL3 or later
@@ -105,10 +105,7 @@ function pub_index_api_display_feed_urls() {
   echo '<p>Feeds in use:</p>';
   echo '<ul>';
   foreach ( $selected_post_types as $post_type ) {
-    $feed_url = get_bloginfo( 'rss2_url' );
-    if ( $post_type !== 'post' ) {
-      $feed_url .= '?post_type=' . urlencode( $post_type );
-    }
+    $feed_url = get_post_type_archive_feed_link( $post_type );
     echo '<li><a href="' . esc_url( $feed_url ) . '">' . esc_html( $feed_url ) . '</a></li>';
   }
   echo '</ul>';
@@ -140,18 +137,14 @@ function pub_index_api_send_data( $post_ID ) {
   $api_key = get_option( 'pub_index_api_key' );
   $selected_post_types = get_option( 'pub_index_api_post_types', array() );
   $post_type = get_post_type( $post_ID );
-  
+
   if ( ! $api_key || ! in_array( $post_type, $selected_post_types ) ) {
     return;
   }
-  
+
   $api_url = 'https://api.pubindex.dev/api/ping';
-  $rss_feed_url = get_bloginfo( 'rss2_url' );
-  
-  if ( $post_type !== 'post' ) {
-    $rss_feed_url .= '?post_type=' . urlencode( $post_type );
-  }
-  
+  $rss_feed_url = get_post_type_archive_feed_link( $post_type );
+
   $request_url = $api_url . '?feed=' . urlencode( $rss_feed_url ) . '&api-key=' . urlencode( $api_key );
   $response = wp_remote_get( $request_url, array(
     'timeout' => 10,
@@ -159,7 +152,7 @@ function pub_index_api_send_data( $post_ID ) {
       'Content-Type' => 'application/json',
     ),
   ) );
-  
+
   if ( ! is_wp_error( $response ) && $response['response']['code'] == 200 ) {
   }
 }
